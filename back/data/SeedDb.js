@@ -11,7 +11,11 @@ const seedDb = async () => {
     try {
         await connectDB();
         await Produit.deleteMany();
-        await Produit.insertMany(datas);
+        const datasWithStock = datas.map((item) => ({
+            ...item,
+            stock: 5,
+        }));
+        await Produit.insertMany(datasWithStock);
         console.log("Données insérées avec succès");
         mongoose.disconnect();
     } catch (error) {

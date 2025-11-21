@@ -32,6 +32,9 @@ const ItemPanier = ({ itemId, deleteButtonFct }) => {
                 />
                 <h3 className={styles.name}>{item?.title}</h3>
                 <p className={styles.price}>{item?.price} €</p>
+                <p>
+                    Stock : <b>{item?.stock}</b>
+                </p>
                 <div className={styles.buttonContainer}>
                     <Bouton
                         label={"X"}

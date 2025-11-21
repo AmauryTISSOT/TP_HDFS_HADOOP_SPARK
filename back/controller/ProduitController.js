@@ -174,9 +174,19 @@ export const addProduitToPanier = async (req, res) => {
         if (!produit) {
             return res.status(404).json({ message: "Produit non trouvé" });
         }
+
+        // Vérification du stock disponible
+        if (produit.stock <= 0) {
+            return res.status(400).json({ message: "Stock insuffisant" });
+        }
+
+        // Décrémenter le stock
+        produit.stock -= 1;
+        await produit.save();
+
         // Envoi de l'événement dans Kafka
         await producer.send({
-            topic: "cart-events", //TODO: nom du topic à déterminer
+            topic: "ecommerce",
             messages: [
                 {
                     key: req.params.id,
@@ -185,6 +195,7 @@ export const addProduitToPanier = async (req, res) => {
                         produitId: produit._id,
                         title: produit.title,
                         price: produit.price,
+                        newStock: produit.stock,
                         timestamp: Date.now(),
                     }),
                 },
@@ -192,11 +203,15 @@ export const addProduitToPanier = async (req, res) => {
         });
 
         console.log(
-            `Produit ${produit._id} ajouté au panier et envoyé à Kafka`
+            `Produit ${produit._id} ajouté au panier, stock décrémenté et envoyé à Kafka`
         );
-        res.status(200).json({ message: "Produit ajouté au panier", produit });
+
+        res.status(200).json({
+            message: "Produit ajouté au panier",
+            produit,
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Une erreur est survenue" }); // Erreur serveur
+        res.status(500).json({ message: "Une erreur est survenue" });
     }
 };

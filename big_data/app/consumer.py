@@ -6,12 +6,13 @@ import time
 # =========================
 # CONFIG EN DUR
 # =========================
-BOOTSTRAP_SERVERS = "kafka:9092"      # dans Docker
-TOPIC = "mon_topic"
+BOOTSTRAP_SERVERS = "kafka:9092"  # dans Docker
+TOPIC = "ecommerce"
 
-HDFS_HOSTS = "namenode:9870"          # WebHDFS du namenode
+HDFS_HOSTS = "namenode:9870"  # WebHDFS du namenode
 HDFS_USER = "root"
 HDFS_OUTPUT_PATH = "/user/kafka/flux.txt"
+
 
 # =========================
 # FONCTIONS HDFS
@@ -45,9 +46,14 @@ def safe_append(fs, path, data: bytes, retries=20, base_sleep=0.5):
             return
         except pyhdfs.HdfsHttpException as e:
             msg = str(e)
-            if "AlreadyBeingCreatedException" in msg or "RecoveryInProgressException" in msg:
+            if (
+                "AlreadyBeingCreatedException" in msg
+                or "RecoveryInProgressException" in msg
+            ):
                 delay = base_sleep * (i + 1)
-                print(f"[consumer] HDFS occupé (lease / recovery), retry {i+1}/{retries} dans {delay:.1f}s…")
+                print(
+                    f"[consumer] HDFS occupé (lease / recovery), retry {i+1}/{retries} dans {delay:.1f}s…"
+                )
                 last_exc = e
                 time.sleep(delay)
                 continue

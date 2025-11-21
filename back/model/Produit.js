@@ -32,6 +32,9 @@ const produitSchema = new mongoose.Schema({
     category: {
         type: String,
     },
+    stock: {
+        type: Number,
+    },
 });
 
 const Produit = mongoose.model("Produit", produitSchema);

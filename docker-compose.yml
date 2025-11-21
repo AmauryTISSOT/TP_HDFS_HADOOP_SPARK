@@ -1,4 +1,207 @@
 services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    hostname: namenode
+    ports:
+      - "9870:9870" # UI NameNode + WebHDFS
+      - "9000:9000" # HDFS (hdfs://namenode:9000)
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./big_data/hadoop.env
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./hdfs-data:/data
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    hostname: datanode
+    depends_on:
+      - namenode
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+    env_file:
+      - ./big_data/hadoop.env
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    ports:
+      - "9864:9864" # UI DataNode (optionnel)
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    hostname: resourcemanager
+    depends_on:
+      - namenode
+    env_file:
+      - ./big_data/hadoop.env
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+    ports:
+      - "8088:8088" # UI YARN ResourceManager
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    hostname: nodemanager
+    depends_on:
+      - resourcemanager
+      - namenode
+    env_file:
+      - ./big_data/hadoop.env
+    environment:
+      - SERVICE_PRECONDITION=resourcemanager:8088
+    ports:
+      - "8042:8042" # UI NodeManager (optionnel)
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    hostname: historyserver
+    depends_on:
+      - namenode
+      - resourcemanager
+    env_file:
+      - ./big_data/hadoop.env
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870 resourcemanager:8088
+    ports:
+      - "8188:8188" # UI JobHistory (MapReduce)
+
+  # ======================
+  #   ZOOKEEPER / KAFKA
+  # ======================
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CREATE_TOPICS: "ecommerce:1:1"
+    depends_on:
+      - zookeeper
+
+  consumer:
+    build: ./big_data/app
+    container_name: kafka-consumer
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=ecommerce
+    command: ["python", "consumer.py"]
+    volumes:
+      - ./big_data/app:/app
+
+  hdfspython:
+    build: ./big_data/app
+    container_name: hdfspy
+    depends_on:
+      - kafka
+      - namenode
+    command: ["python", "interaction_hdfs.py"]
+    environment:
+      - HDFS_HOSTS=namenode:9870
+      - HDFS_USER=root
+    volumes:
+      - ./big_data/app:/app
+
+  # ======================
+  #        SPARK
+  #   (images BDE2020)
+  # ======================
+
+  spark-master:
+    image: bde2020/spark-master:3.1.1-hadoop3.2
+    container_name: spark-master
+    hostname: spark-master
+    ports:
+      - "8080:8080" # UI Spark Master
+      - "7077:7077" # spark://spark-master:7077
+    environment:
+      - INIT_DAEMON_STEP=setup_spark
+    depends_on:
+      - namenode
+      - kafka
+
+  spark-worker:
+    image: bde2020/spark-worker:3.1.1-hadoop3.2
+    container_name: spark-worker
+    hostname: spark-worker
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081" # UI Spark Worker
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+
+  # Client Spark qui lance spark-submit (Structured Streaming Kafka -> HDFS)
+  sparkpy:
+    image: bde2020/spark-submit:3.1.1-hadoop3.2
+    container_name: sparkpy
+    hostname: sparkpy
+    depends_on:
+      - spark-master
+      - spark-worker
+      - kafka
+      - namenode
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=ecommerce
+      - HDFS_OUTPUT_PATH=hdfs://namenode:9000/user/spark/kafka_stream/data
+      - CHECKPOINT_LOCATION=hdfs://namenode:9000/user/spark/kafka_stream/checkpoints
+    volumes:
+      - ./big_data/app:/app
+    command: >
+      bash -c "sleep 20 && /spark/bin/spark-submit --master spark://spark-master:7077 --deploy-mode client --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.1 /app/stream_kafka_to_hdfs.py"
+  spark-console:
+    image: bde2020/spark-submit:3.1.1-hadoop3.2
+    container_name: spark-console
+    hostname: spark-console
+    depends_on:
+      - spark-master
+      - spark-worker
+      - kafka
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_TOPIC=ecommerce
+    volumes:
+      - ./big_data/app:/app
+    command: >
+      /spark/bin/spark-submit 
+      --master local[*] 
+      --deploy-mode client 
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.1 
+      /app/stream_kafka_console.py
+
+  spark-validate:
+    image: bde2020/spark-submit:3.1.1-hadoop3.2
+    container_name: spark-validate
+    depends_on:
+      - sparkpy
+      - namenode
+    environment:
+      - HDFS_OUTPUT_PATH=hdfs://namenode:9000/user/spark/kafka_stream/data
+    volumes:
+      - ./big_data/app:/app
+    command: >
+      bash -c "sleep 60 && /spark/bin/spark-submit --master local[*] /app/spark_read_parquet.py"
+
   mongo:
     image: mongo:latest
     container_name: mongo
@@ -16,11 +219,26 @@ services:
     container_name: mongo-express
     restart: always
     ports:
-      - "8081:8081"
+      - "8082:8081"
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: admin
       ME_CONFIG_MONGODB_ADMINPASSWORD: secret
       ME_CONFIG_MONGODB_URL: mongodb://admin:secret@mongo:27017/
 
+  backend:
+    build: ./back
+    container_name: backend
+    ports:
+      - "5043:5043"
+    environment:
+      - PORT=5043
+      - DB=mongodb://admin:secret@mongo:27017/
+      - KAFKA=kafka:9092
+    depends_on:
+      - mongo
+      - kafka
+
 volumes:
+  hadoop_namenode:
+  hadoop_datanode:
   mongo_data:
