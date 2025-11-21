@@ -92,7 +92,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CREATE_TOPICS: "animal:1:1"
+      KAFKA_CREATE_TOPICS: "ecommerce:1:1"
     depends_on:
       - zookeeper
 
@@ -103,7 +103,7 @@ services:
       - kafka
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=animal
+      - KAFKA_TOPIC=ecommerce
     command: ["python", "producer.py"]
     volumes:
       - ./app:/app
@@ -115,7 +115,7 @@ services:
       - kafka
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=animal
+      - KAFKA_TOPIC=ecommerce
     command: ["python", "consumer.py"]
     volumes:
       - ./app:/app
@@ -175,7 +175,7 @@ services:
     environment:
       - SPARK_MASTER=spark://spark-master:7077
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC=animal
+      - KAFKA_TOPIC=ecommerce
       - HDFS_OUTPUT_PATH=hdfs://namenode:9000/user/spark/kafka_stream/data
       - CHECKPOINT_LOCATION=hdfs://namenode:9000/user/spark/kafka_stream/checkpoints
     volumes:
