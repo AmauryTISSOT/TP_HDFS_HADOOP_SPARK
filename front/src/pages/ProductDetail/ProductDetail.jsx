@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import PostsApi from "../../services/PostApi.js";
+import ProductApi from "../../services/ProductApi.js";
 import styles from "./ProductDetail.module.css";
 import Bouton from "../../components/Bouton/Bouton.jsx";
-import postApi from "../../services/PostApi.js";
 import { usePanierContext } from "../../context/PanierContext.jsx";
 
 /**
@@ -20,7 +19,7 @@ const ProductDetail = () => {
      * La récupération se fait via l'API `getProduitById` et met à jour `productDetail`.
      */
     useEffect(() => {
-        PostsApi.getProduitById(id).then((response) =>
+        ProductApi.getProduitById(id).then((response) =>
             setProductDetail(response)
         );
     }, [id]);
@@ -39,7 +38,7 @@ const ProductDetail = () => {
      * et après suppression, redirige l'utilisateur vers la page d'accueil.
      */
     const deleteProduct = (id) => {
-        postApi.deleteProduit(id).then((response) => {
+        PostApi.deleteProduit(id).then((response) => {
             alert(`Product deleted successfully` + response);
         });
         handleNavigate();
@@ -72,7 +71,7 @@ const ProductDetail = () => {
                     <Bouton
                         styles={styles.buttonAddPanier}
                         label={"Ajouter au panier"}
-                        onClick={() => addToPanier(id)}
+                        onClick={async () => await addToPanier(id)}
                     />
                     <Bouton
                         styles={styles.buttonDeleteArticle}
