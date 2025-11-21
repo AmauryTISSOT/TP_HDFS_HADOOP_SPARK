@@ -1,21 +1,22 @@
 from kafka import KafkaConsumer
 import pyhdfs
 import os
+import json
 import time
 
-# =========================
+
 # CONFIG EN DUR
-# =========================
+
 BOOTSTRAP_SERVERS = "kafka:9092"      # dans Docker
-TOPIC = "mon_topic"
+TOPIC = "ecommerce"                # même topic que le producer
 
 HDFS_HOSTS = "namenode:9870"          # WebHDFS du namenode
 HDFS_USER = "root"
 HDFS_OUTPUT_PATH = "/user/kafka/flux.txt"
 
-# =========================
+
 # FONCTIONS HDFS
-# =========================
+
 def wait_for_hdfs(fs, timeout_sec=60):
     """Attend que le NameNode réponde avant de continuer."""
     start = time.time()
@@ -59,9 +60,8 @@ def safe_append(fs, path, data: bytes, retries=20, base_sleep=0.5):
         raise last_exc
 
 
-# =========================
 # CLIENT HDFS
-# =========================
+
 fs = pyhdfs.HdfsClient(hosts=HDFS_HOSTS, user_name=HDFS_USER)
 
 # On attend que le namenode soit vraiment prêt
@@ -78,14 +78,14 @@ if not fs.exists(HDFS_OUTPUT_PATH):
     print(f"[consumer] Création du fichier HDFS {HDFS_OUTPUT_PATH}")
     fs.create(HDFS_OUTPUT_PATH, b"")
 
-# =========================
+
 # CONSUMER KAFKA
-# =========================
+
 consumer = KafkaConsumer(
     TOPIC,
     bootstrap_servers=BOOTSTRAP_SERVERS,
     group_id="mon-consumer-group",
-    value_deserializer=lambda v: v.decode("utf-8"),
+    value_deserializer=lambda v: json.loads(v.decode("utf-8")),
     auto_offset_reset="earliest",
     enable_auto_commit=True,
 )
@@ -99,14 +99,22 @@ try:
     for msg in consumer:
         valeur = msg.value  # déjà en str
         print(
-            f"[consumer] topic={msg.topic} "
-            f"partition={msg.partition} "
-            f"offset={msg.offset} "
-            f"value={valeur}"
+            f"[consumer] recu : type={valeur.get('valeur_type')}"
+            f"user={valeur.get('user_id')} produit={valeur.get('product_id')} "
+            f"quantity={valeur.get('quantity')} timestamp={valeur.get('timestamp')} "
+            f"stock_level={valeur.get('stock_level')}"
         )
+        event_type = valeur.get("event_type", "inconnu")
+        output_path = f"/user/kafka/{event_type}.txt"
+
+        # Crée le fichier s’il n’existe pas
+        if not fs.exists(output_path):
+            print(f"[consumer] Création du fichier HDFS {output_path}")
+            fs.create(output_path, b"")
+
 
         # Append dans le fichier HDFS
-        data = (valeur + "\n").encode("utf-8")
+        data = (json.dumps(valeur) + "\n").encode("utf-8")
         safe_append(fs, HDFS_OUTPUT_PATH, data)
 
 except KeyboardInterrupt:
