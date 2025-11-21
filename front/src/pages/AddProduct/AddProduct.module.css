@@ -1,0 +1,66 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60%;
+    padding: 25px 5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.formContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+form {
+    display: flex;
+    flex-direction: column; /* Change ici : on aligne verticalement */
+    gap: 15px;
+    width: 100%;
+    max-width: 400px; /* Pour éviter que ça soit trop large */
+}
+
+form div {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+label {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+input, textarea {
+    padding: 10px;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    background-color: #6A0DAD;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #530A8A;
+}

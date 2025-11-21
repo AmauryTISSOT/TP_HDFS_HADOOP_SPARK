@@ -1,0 +1,30 @@
+.header {
+    background-color: white;
+    width: calc(100vw - 57px);
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.navList {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.navList li a {
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.navList li a:hover {
+    text-decoration: underline;
+}
+
+.logo {
+    text-decoration: none;
+    color: inherit;
+}

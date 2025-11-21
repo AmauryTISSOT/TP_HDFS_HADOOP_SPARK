@@ -1,0 +1,59 @@
+.searchBar {
+    width: 60%;
+}
+
+.mainContainer {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+}
+
+.resultContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.resultItem {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    width: 500px;
+    padding: 16px;
+    text-decoration: none;
+    color: black;
+}
+
+.resultImg {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.nameContainer {
+    display: flex;
+    align-items: start;
+    width: 60%;
+}
+
+.resultName {
+    font-weight: 600;
+    font-size: 1.125rem;
+    max-width: 250px;
+    text-align: start;
+}
+
+.resultPrice {
+    color: #666;
+    font-weight: 600;
+}

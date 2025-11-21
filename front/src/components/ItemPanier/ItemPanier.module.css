@@ -1,0 +1,53 @@
+.container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    padding: 16px;
+}
+
+.image {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.name {
+    font-weight: 600;
+    font-size: 1.125rem;
+    max-width: 250px;
+    text-align: start;
+}
+
+.price {
+    color: #666;
+}
+
+.removeButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    width: 28px;
+    height: 28px;
+    padding: 10px;
+    border: none;
+    color: white;
+    background-color: red;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 0;
+}
+
+.removeButton:hover {
+    opacity: .8;
+}
