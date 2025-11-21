@@ -1,4 +1,5 @@
 import { Produit, produitValidation } from "../model/Produit.js";
+import { producer } from "../kafka/producer.js";
 
 /**
  * Controller pour récupérer la liste de tous les produits.
@@ -163,5 +164,39 @@ export const rechercherProduits = async (req, res) => {
         res.status(500).json({
             message: "Erreur lors de la recherche de produits", // Erreur serveur
         });
+    }
+};
+
+export const addProduitToPanier = async (req, res) => {
+    try {
+        const produit = await Produit.findById(req.params.id);
+
+        if (!produit) {
+            return res.status(404).json({ message: "Produit non trouvé" });
+        }
+        // Envoi de l'événement dans Kafka
+        await producer.send({
+            topic: "cart-events", //TODO: nom du topic à déterminer
+            messages: [
+                {
+                    key: req.params.id,
+                    value: JSON.stringify({
+                        type: "ADD_TO_CART",
+                        produitId: produit._id,
+                        title: produit.title,
+                        price: produit.price,
+                        timestamp: Date.now(),
+                    }),
+                },
+            ],
+        });
+
+        console.log(
+            `Produit ${produit._id} ajouté au panier et envoyé à Kafka`
+        );
+        res.status(200).json({ message: "Produit ajouté au panier", produit });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Une erreur est survenue" }); // Erreur serveur
     }
 };

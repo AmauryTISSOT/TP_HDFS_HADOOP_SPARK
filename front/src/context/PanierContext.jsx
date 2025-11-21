@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import useLocalStorage from "../hooks/useLocalStorage";
+import ProductApi from "../services/ProductApi.js";
 
 const PanierContext = createContext({});
 
@@ -32,7 +33,12 @@ export const PanierProvider = ({ children }) => {
      *
      * @param {string|number} id - L'identifiant de l'article à ajouter au panier.
      */
-    const addToPanier = (id) => {
+    const addToPanier = async (id) => {
+        try {
+            await ProductApi.addProduitToPanier(id);
+        } catch (error) {
+            console.error("Erreur lors de l'ajout du produit au panier", error);
+        }
         setPanierItems((item) => {
             if (id !== undefined) {
                 return [...item, id];
