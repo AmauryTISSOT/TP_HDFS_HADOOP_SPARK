@@ -38,6 +38,9 @@ const ProductCard = () => {
                         <div className={styles.cardContent}>
                             <p>{produit.title}</p>
                             <p>{produit.price} €</p>
+                            <p>
+                                Stock disponible : <b>{produit.stock}</b>
+                            </p>
                         </div>
                     </Link>
                     <Bouton

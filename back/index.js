@@ -18,7 +18,7 @@ app.use(routes);
 
 const startServer = async () => {
     try {
-        // await connectProducer();
+        await connectProducer();
         app.use(routes);
         app.listen(port, () =>
             console.log(`Le serveur est à l'écoute sur le port ${port}`)

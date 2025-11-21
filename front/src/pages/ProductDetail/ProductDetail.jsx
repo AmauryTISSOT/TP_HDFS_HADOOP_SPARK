@@ -67,6 +67,10 @@ const ProductDetail = () => {
                 <p className={styles.description}>
                     {productDetail?.description || "Description non disponible"}
                 </p>
+                <p className={styles.description}>
+                    Stock :{" "}
+                    <b>{productDetail?.stock || "Stock non disponible"}</b>
+                </p>
                 <div className={styles.buttonContainer}>
                     <Bouton
                         styles={styles.buttonAddPanier}
