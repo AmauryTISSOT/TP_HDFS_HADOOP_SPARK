@@ -10,10 +10,6 @@ Pour le back :
 
 ```bash
 docker compose up -d
-cd back
-npm install
-npm run seed
-npm run start
 ```
 
 Pour le front :
