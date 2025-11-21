@@ -6,7 +6,7 @@ const Header = () => {
         <header className={styles.header}>
             <h1>
                 <Link to="/" className={styles.logo}>
-                    IPSSI Shop
+                    ShopNow+
                 </Link>
             </h1>
             <nav>
