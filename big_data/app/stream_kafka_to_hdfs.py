@@ -1,32 +1,32 @@
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, when, to_timestamp, date_format
+from pyspark.sql.functions import col, from_json, to_timestamp, date_format
 from pyspark.sql.types import *
 
 
 def main():
     kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-    kafka_topic = os.getenv("KAFKA_TOPIC", "animal")
+    kafka_topic = os.getenv("KAFKA_TOPIC", "ecommerce")
     hdfs_output = os.getenv(
-        "HDFS_OUTPUT_PATH", "hdfs://namenode:9000/user/petcare/animals"
+        "HDFS_OUTPUT_PATH", "hdfs://namenode:9000/user/ecommerce/events"
     )
     checkpoint = os.getenv(
-        "CHECKPOINT_LOCATION", "hdfs://namenode:9000/user/petcare/checkpoints"
+        "CHECKPOINT_LOCATION", "hdfs://namenode:9000/user/ecommerce/checkpoints"
     )
 
-    spark = SparkSession.builder.appName("PetCare_Kafka_to_Parquet").getOrCreate()
+    spark = SparkSession.builder.appName("Ecommerce_Kafka_to_HDFS").getOrCreate()
 
     spark.sparkContext.setLogLevel("WARN")
 
+    #  Schéma des messages envoyés par ton backend Express
     schema = StructType(
         [
-            StructField("animal_id", StringType()),
-            StructField("espece", StringType()),
-            StructField("poids", DoubleType()),
-            StructField("temperature", DoubleType()),
-            StructField("alerte", StringType()),
-            StructField("vet", StringType()),
-            StructField("timestamp", StringType()),
+            StructField("type", StringType()),
+            StructField("produitId", StringType()),
+            StructField("title", StringType()),
+            StructField("price", DoubleType()),
+            StructField("userId", StringType()),
+            StructField("timestamp", LongType()),
         ]
     )
 
@@ -38,53 +38,26 @@ def main():
         .load()
     )
 
+    # Convertit la valeur Kafka en string JSON
     json_df = kafka_df.select(col("value").cast("string").alias("json_str"))
 
+    # Parse JSON → colonnes exploitables
     parsed = json_df.select(from_json(col("json_str"), schema).alias("data")).select(
         "data.*"
     )
 
-    parsed = parsed.withColumn("ts", to_timestamp(col("timestamp"))).withColumn(
-        "date", date_format(col("ts"), "yyyy-MM-dd")
-    )
+    # Convertit timestamp (ms) → timestamp Spark
+    parsed = parsed.withColumn("ts", to_timestamp(col("timestamp") / 1000))
 
-    parsed = parsed.withColumn(
-        "en_alerte",
-        (col("alerte").isNotNull() & (col("alerte") != "RAS"))
-        | (col("temperature") > 39.0)
-        | (col("temperature") < 35.5),
-    )
+    # Partition par jour
+    parsed = parsed.withColumn("date", date_format(col("ts"), "yyyy-MM-dd"))
 
-    parsed = parsed.withColumn(
-        "niveau_urgence",
-        when(col("alerte") == "fièvre", "HAUT")
-        .when(col("alerte") == "léthargie", "HAUT")
-        .when(col("alerte") == "vomissements", "MOYEN")
-        .when(col("alerte") == "boiterie", "MOYEN")
-        .when(col("alerte") == "toux", "MOYEN")
-        .when(col("alerte") == "RAS", "FAIBLE")
-        .otherwise(
-            # si alerte inconnue mais température critique -> HAUT
-            when(
-                (col("temperature") > 39.0) | (col("temperature") < 35.5), "HAUT"
-            ).otherwise("MOYEN")
-        ),
-    )
-
+    # Colonnes finales
     result = parsed.select(
-        "animal_id",
-        "espece",
-        "poids",
-        "temperature",
-        "alerte",
-        "vet",
-        "timestamp",
-        "ts",
-        "date",
-        "en_alerte",
-        "niveau_urgence",
+        "type", "produitId", "title", "price", "userId", "timestamp", "ts", "date"
     )
 
+    #  Écriture continue vers HDFS en Parquet
     query = (
         result.writeStream.format("parquet")
         .option("path", hdfs_output)
@@ -94,10 +67,11 @@ def main():
         .start()
     )
 
-    print("=== STREAMING PARQUET DÉMARRÉ ===")
-    print(f"Kafka -> {kafka_topic}")
-    print(f"HDFS output -> {hdfs_output}")
-    print(f"Checkpoint -> {checkpoint}")
+    print("=== STREAMING ECOMMERCE → HDFS DÉMARRÉ ===")
+    print(f"Topic Kafka : {kafka_topic}")
+    print(f"HDFS output : {hdfs_output}")
+    print(f"Checkpoint : {checkpoint}")
+
     query.awaitTermination()
 
 

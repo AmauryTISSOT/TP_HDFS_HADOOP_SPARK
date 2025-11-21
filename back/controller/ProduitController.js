@@ -23,19 +23,35 @@ export const getProduits = async (req, res) => {
  */
 export const getProduitByID = async (req, res) => {
     try {
-        // Recherche du produit par son ID
         const produit = await Produit.findById(req.params.id);
 
-        // Si le produit n'est pas trouvé, on renvoie une erreur 404
         if (!produit) {
             return res.status(404).json({ message: "Produit non trouvé" });
         }
 
-        // Si le produit est trouvé, on le renvoie avec un statut 200
+        await producer.send({
+            topic: "ecommerce",
+            messages: [
+                {
+                    key: produit._id.toString(),
+                    value: JSON.stringify({
+                        type: "VIEW_PRODUCT",
+                        produitId: produit._id,
+                        title: produit.title,
+                        price: produit.price,
+                        timestamp: Date.now(),
+                        stock: produit.stock,
+                    }),
+                },
+            ],
+        });
+
+        console.log(`Consultation du produit ${produit._id} envoyée à Kafka`);
+
         res.status(200).json(produit);
     } catch (error) {
-        console.error(error); // Affiche l'erreur dans la console
-        res.status(500).json({ message: "Une erreur est survenue" }); // Erreur serveur
+        console.error(error);
+        res.status(500).json({ message: "Une erreur est survenue" });
     }
 };
 

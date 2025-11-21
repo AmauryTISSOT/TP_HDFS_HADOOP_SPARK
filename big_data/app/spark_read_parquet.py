@@ -3,10 +3,7 @@ from pyspark.sql import SparkSession
 
 
 def main():
-    hdfs_output = os.getenv(
-        "HDFS_OUTPUT_PATH", "hdfs://namenode:9000/user/petcare/animals"
-    )
-
+    hdfs_output = "hdfs://namenode:9000/user/spark/kafka_stream/data"
     spark = SparkSession.builder.appName("ValidateParquet").getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
 
