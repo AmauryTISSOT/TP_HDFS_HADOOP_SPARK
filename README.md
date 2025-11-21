@@ -22,5 +22,5 @@ npm run dev
 
 ## Credentials pour accéder à mongo - express :
 
-indetifiant : admin
+indetifiant : admin 
 mot de passe : pass
