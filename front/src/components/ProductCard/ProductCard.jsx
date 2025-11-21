@@ -20,10 +20,14 @@ const ProductCard = () => {
     const { addToPanier } = usePanierContext();
 
     useEffect(() => {
+        fetchProduits();
+    }, []);
+
+    const fetchProduits = () => {
         ProductApi.getProduits().then((response) => {
             setProduct(response);
         });
-    }, []);
+    };
 
     return (
         <section className={styles.grid}>
@@ -46,7 +50,10 @@ const ProductCard = () => {
                     <Bouton
                         styles={styles.button}
                         label={"Ajouter au panier"}
-                        onClick={async () => await addToPanier(produit._id)}
+                        onClick={async () => {
+                            await addToPanier(produit._id);
+                            fetchProduits();
+                        }}
                     />
                 </div>
             ))}
