@@ -6,7 +6,7 @@ const PostsApi = {
      * Fonction permetant d'appeler mon API pour obtenir la liste de tous les produits
      */
     getProduits: () => {
-        return fetch("http://localhost:8081/produits").then((response) =>
+        return fetch("http://localhost:5043/produits").then((response) =>
             response.json()
         );
     },
@@ -16,7 +16,7 @@ const PostsApi = {
      */
     getProduitById: (id) => {
         console.log("Id from getProduitById");
-        return fetch(`http://localhost:8081/produit/${id}`).then((response) =>
+        return fetch(`http://localhost:5043/produit/${id}`).then((response) =>
             response.json()
         );
     },
@@ -25,7 +25,7 @@ const PostsApi = {
      * Fonction permetant d'appeler mon API pour créer un nouveau produit
      */
     addProduit: (produit) => {
-        return fetch("http://localhost:8081/produit", {
+        return fetch("http://localhost:5043/produit", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -43,7 +43,7 @@ const PostsApi = {
      * Fonction permetant d'appeler mon API pour supprimer un produit
      */
     deleteProduit: (id) => {
-        return fetch(`http://localhost:8081/produit/${id}`, {
+        return fetch(`http://localhost:5043/produit/${id}`, {
             method: "DELETE",
             headers: { "content-type": "application/json" },
         })
@@ -59,7 +59,7 @@ const PostsApi = {
      * Fonction permetant d'appeler mon API pour mettre à jour un produit
      */
     updateProduit: (id, produit) => {
-        return fetch(`http://localhost:8081/produit/${id}`, {
+        return fetch(`http://localhost:5043/produit/${id}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
@@ -79,7 +79,7 @@ const PostsApi = {
      */
     getProduitByIdToUpdate: (id) => {
         console.log("Id from getProduitById");
-        return fetch(`http://localhost:8081/produit/${id}`).then((response) =>
+        return fetch(`http://localhost:5043/produit/${id}`).then((response) =>
             response.json().then((data) => ({
                 status: response.status,
                 data: data,
