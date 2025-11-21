@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Bouton from "../Bouton/Bouton";
-import PostsApi from "../../services/PostApi";
+import ProductApi from "../../services/ProductApi";
 import styles from "./ItemPanier.module.css";
 
 /**
@@ -17,7 +17,9 @@ const ItemPanier = ({ itemId, deleteButtonFct }) => {
 
     // On récupère la donnée à l'aide de l'item id et on la stock dans un useState
     useEffect(() => {
-        PostsApi.getProduitById(itemId).then((response) => setItems(response));
+        ProductApi.getProduitById(itemId).then((response) =>
+            setItems(response)
+        );
     }, [itemId]);
 
     return (

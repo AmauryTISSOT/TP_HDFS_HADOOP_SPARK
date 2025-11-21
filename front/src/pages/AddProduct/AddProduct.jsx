@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import PostsApi from "../../services/PostApi.js";
+import ProductApi from "../../services/ProductApi.js";
 import * as yup from "yup";
 import { useNavigate, useParams } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -60,10 +60,9 @@ const AddProduct = () => {
      */
     const fetchProductData = async (id) => {
         try {
-            const response = await PostsApi.getProduitByIdToUpdate(id);
+            const response = await ProductApi.getProduitByIdToUpdate(id);
             console.log(response);
             if (response.status === 200) {
-                console.log("aaaa");
                 const productData = response.data;
                 console.log("Produit récupéré :", productData);
                 console.log(productData);
@@ -92,10 +91,10 @@ const AddProduct = () => {
             let response;
 
             if (productId) {
-                response = await PostsApi.updateProduit(productId, data);
+                response = await ProductApi.updateProduit(productId, data);
                 toast.success("✅ Produit mis à jour avec succès !");
             } else {
-                response = await PostsApi.addProduit(data);
+                response = await ProductApi.addProduit(data);
                 toast.success("✅ Produit ajouté avec succès !");
             }
 

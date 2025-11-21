@@ -1,6 +1,6 @@
 import styles from "./ProductCard.module.css";
 import React, { useEffect } from "react";
-import postApi from "../../services/PostApi.js";
+import ProductApi from "../../services/ProductApi.js";
 import Bouton from "../Bouton/Bouton.jsx";
 import { Link } from "react-router-dom";
 import { usePanierContext } from "../../context/PanierContext.jsx";
@@ -20,7 +20,7 @@ const ProductCard = () => {
     const { addToPanier } = usePanierContext();
 
     useEffect(() => {
-        postApi.getProduits().then((response) => {
+        ProductApi.getProduits().then((response) => {
             setProduct(response);
         });
     }, []);
@@ -43,7 +43,7 @@ const ProductCard = () => {
                     <Bouton
                         styles={styles.button}
                         label={"Ajouter au panier"}
-                        onClick={() => addToPanier(produit._id)}
+                        onClick={async () => await addToPanier(produit._id)}
                     />
                 </div>
             ))}

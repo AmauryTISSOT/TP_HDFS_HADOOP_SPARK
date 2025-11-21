@@ -6,6 +6,7 @@ import {
     delProduit,
     majProduit,
     rechercherProduits,
+    addProduitToPanier,
 } from "../controller/ProduitController.js";
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get("/produit/:id", getProduitByID);
 router.post("/produit", newProduit);
 router.delete("/produit/:id", delProduit);
 router.put("/produit/:id", majProduit);
+router.put("/produit/:id/panier", addProduitToPanier);
 router.get("/produits/recherche", rechercherProduits);
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Constante qui stocke toutes les fonctions qui font appel à notre API NodeJS pour manipuler la BDD
  */
-const PostsApi = {
+const ProductApi = {
     /**
      * Fonction permetant d'appeler mon API pour obtenir la liste de tous les produits
      */
@@ -86,6 +86,21 @@ const PostsApi = {
             }))
         );
     },
+
+    /**
+     * Ajout d'un produit au panier
+     * @param {*} id
+     * @returns http status code
+     */
+    addProduitToPanier: (id) => {
+        console.log("Id from addProduitToPanier", id);
+        return fetch(`http://localhost:5043/produit/${id}/panier`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        }).then((response) => response.json());
+    },
 };
 
-export default PostsApi;
+export default ProductApi;
