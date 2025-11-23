@@ -33,11 +33,57 @@ mot de passe : pass
 
 ## Front
 
-**Quelles pages principales proposez-vous ?**
+L'application utilise la stack MERN.
+Le front de l'application utilise donc React ave Vite.
+
+### Commandes disponibles
+
+| Commande          | Description                                               |
+| ----------------- | --------------------------------------------------------- |
+| `npm run dev`     | Lance le serveur de développement Vite (hot-reload)       |
+| `npm run build`   | Compile et optimise le projet pour la production (`dist`) |
+| `npm run preview` | Lance un aperçu local de la version buildée               |
+| `npm run lint`    | Vérifie la qualité du code avec ESLint                    |
+
+### Dépendances
+
+| Package                  | Version | Rôle principal                                   |
+| ------------------------ | ------- | ------------------------------------------------ |
+| **react**                | 19.0.0  | Bibliothèque principale React                    |
+| **react-dom**            | 19.0.0  | Rendu des composants React dans le DOM           |
+| **react-router-dom**     | 7.2.0   | Gestion du routing et navigation                 |
+| **react-hook-form**      | 7.54.2  | Gestion performante et légère des formulaires    |
+| **@hookform/resolvers**  | 4.1.0   | Intégration de schémas de validation (Yup, Zod…) |
+| **yup**                  | 1.6.1   | Validation des données des formulaires           |
+| **react-toastify**       | 11.0.3  | Affichage de notifications toast (succès/erreur) |
+| **vite**                 | 6.1.0   | Outil de build ultra-rapide (dev)                |
+| **@vitejs/plugin-react** | 4.3.4   | Support React + Fast Refresh pour Vite           |
+| **eslint** + plugins     | 9.x     | Linting et respect des bonnes pratiques          |
+| **@types/**              | 19.x    | Types TypeScript pour React et React-DOM (dev)   |
+
+### Pages de l'application
+
+| Chemin (path)  | Description de la page                                                        |
+| -------------- | ----------------------------------------------------------------------------- |
+| `/`            | Page d'accueil de l'application avec la liste des produits sous forme de card |
+| `/detail/{id}` | Page affichant les détails d'un produit                                       |
+| `/addProduit`  | Page affichant un formulaire permettant d'ajouter un produit                  |
+| `/recherche`   | Page de recherche d'un produit                                                |
+| `/recherche`   | Page affichant le panier de l'utilisateur                                     |
 
 **Comment organisez-vous l’affichage des stocks pour que le client comprenne ce qu’il peut acheter ?**
 
+L'affichage des stocks d'un produit s'effectue d'après les données provenant du backend.
+Exemple d'affichage :  
+![](https://i.imgur.com/mjwa0qi.png)
+
 **Quels événements utilisateur (clic, ajout panier, validation) sont remontés au Back et potentiellement envoyés à Kafka ?**
+
+Deux événements utilisateur déclenche un envoi de données vers Kafka :
+
+-   lorsque l'utilisateur clique sur un article pour obtenir des détails (page `/detail/{id}`)
+-   lorsque l'utilisateur ajoute un article dans son panier. Ici, le fichier `PanierContext.jsx` met en place un système de panier global côté front grâce au React Context.
+    La fonction `addToPanier(id)` appelle l’API backend pour décrémenter le stock du produit qui génèrera l'envoi vers Kafka. Grâce au hook `usePanierContext`, n’importe quel composant de l’application peut accéder instantanément à la liste des produits dans le panier (`panierItems`) et aux fonctions d’ajout/suppression.
 
 ## Back
 
