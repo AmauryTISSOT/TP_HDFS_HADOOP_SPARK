@@ -45,15 +45,15 @@ S'agissant d'une application avec la stack MERN, le backend de l'application uti
 
 ### Dépendances du projet backend
 
-| Package      | Version  | Rôle principal                                                     |
-| ------------ | -------- | ------------------------------------------------------------------ |
-| **express**  | ^4.21.2  | Framework web (API REST)                                           |
-| **mongoose** | ^8.10.1  | ODM MongoDB – gestion des modèles et requêtes                      |
-| **joi**      | ^17.13.3 | Validation des données entrantes depuis les formulaires front      |
-| **kafkajs**  | ^2.2.4   | Client Kafka – production d’événements (VIEW_PRODUCT, ADD_TO_CART) |
-| **cors**     | ^2.8.5   | Gestion du CORS pour le frontend                                   |
-| **dotenv**   | ^16.4.7  | Chargement des variables d’environnement (.env)                    |
-| **nodemon**  | ^3.1.9   | Serveur de développement                                           |
+| Package      | Version | Rôle principal                                                     |
+| ------------ | ------- | ------------------------------------------------------------------ |
+| **express**  | 4.21.2  | Framework web (API REST)                                           |
+| **mongoose** | 8.10.1  | ODM MongoDB – gestion des modèles et requêtes                      |
+| **joi**      | 17.13.3 | Validation des données entrantes depuis les formulaires front      |
+| **kafkajs**  | 2.2.4   | Client Kafka – production d’événements (VIEW_PRODUCT, ADD_TO_CART) |
+| **cors**     | 2.8.5   | Gestion du CORS pour le frontend                                   |
+| **dotenv**   | 16.4.7  | Chargement des variables d’environnement (.env)                    |
+| **nodemon**  | 3.1.9   | Serveur de développement                                           |
 
 ### Commandes disponibles
 
