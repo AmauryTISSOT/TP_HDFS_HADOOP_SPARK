@@ -3,8 +3,8 @@
 | Nom                    | Spécialité    |
 | ---------------------- | ------------- |
 | Amaury TISSOT          | Front & Back  |
-| Léa DRUFFIN            | Kafka & Spark |
-| Hassan HOUSSEIN HOUMED | HDFS          |
+| Léa DRUFFIN            | Kafka |
+| Hassan HOUSSEIN HOUMED | HDFS & Spark |
 
 ## Commandes à effectuer pour lancer le projet
 
