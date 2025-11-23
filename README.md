@@ -65,7 +65,7 @@ S'agissant d'une application avec la stack MERN, le backend de l'application uti
 ### Description des endpoints
 
 Les routes de notre API figure dans le fichier `ProduitRoute.js`:  
-![](https://imgur.com/a/ItsZUl8)
+![](https://i.imgur.com/UdLq9uZ.png)
 
 Voici la description des différents endpoints de notre application :
 
@@ -89,10 +89,10 @@ A l'aide du package `kafkajs`, les endpoints figurant dans le tableau ci-dessous
 | `PUT /produit/:id/panier` | `ADD_TO_CART`    | `ecommerce` | Événement envoyé lorsqu’un produit est ajouté au panier (décrémente le stock de 1 et inclut le nouveau stock restant)    |
 
 La configuration de la connexion avec Kafka s'effectue dans le fichier `/kafka/producer.js`:  
-![https://imgur.com/a/qjsqd94]()
+![](https://i.imgur.com/1Lb4FLp.png)
 
 Ensuite, l'envoi de l'événement s'effectue directement depuis le controller (exemple avec `addProduitToPanier`) :  
-![https://imgur.com/a/eXbagga]()
+![](https://i.imgur.com/wD67a3V.png)
 
 **Comment garantissez-vous que les stocks restent cohérents quand plusieurs clients achètent en même temps (au moins conceptuellement) ?**
 
