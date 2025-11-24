@@ -1,248 +1,267 @@
-# ========================================
-# JE CRÉE MON JOB SPARK 2 POUR L'E-COMMERCE SHOPNOW+
-# SCRIPT 2: LIRE HDFS → ANALYSER → INDICATEURS BUSINESS
-# ========================================
-# Mon objectif: lire les données que le job 1 a sauvegardées dans HDFS
-# puis les analyser pour créer des indicateurs métier utiles pour ShopNow+
-# (TOP produits, CA par jour, alertes rupture, etc.)
+"""
+JOB SPARK 2 - ANALYSE DES KPIs E-COMMERCE
+Je lis les données brutes écrites par Job 1, je les analyse et j'extrais les KPIs business
+"""
 
-import os
+import sys
+import time
+import logging
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, sum as spark_sum, count, avg, desc, when
+from pyspark.sql.functions import col, count, sum as spark_sum, max as spark_max, when
+from datetime import datetime
 
+# ===================================================================
+# CONFIGURATION LOGGING
+# ===================================================================
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ===================================================================
+# ÉTAPE 1: INITIALISATION SPARK SESSION
+# ===================================================================
 print("=" * 70)
-print(" JE DÉMARRE MON JOB SPARK 2: HDFS → ANALYSE")
+print("JOB SPARK 2: ANALYSE DES KPIs E-COMMERCE")
 print("=" * 70)
-
-# ========================================
-# ÉTAPE 1: JE CRÉE MA SESSION SPARK
-# ========================================
-# J'initialise Spark pour lire depuis HDFS et faire des calculs
-
-spark = SparkSession.builder \
-    .appName("ShopNow-EcommerceAnalysis") \
-    .getOrCreate()
-
-spark.sparkContext.setLogLevel("WARN")
-
-print(" ÉTAPE 1: Ma session Spark est créée!")
-
-# ========================================
-# ÉTAPE 2: JE RÉCUPÈRE LES CHEMINS HDFS
-# ========================================
-# Je vais lire depuis le chemin où le job 1 a écrit les données
-# Et j'écris les résultats d'analyse dans un autre chemin
-
-hdfs_input = os.getenv("HDFS_INPUT_PATH", "hdfs://namenode:9000/user/spark/kafka_stream/data")
-hdfs_output_indicators = os.getenv("HDFS_OUTPUT_INDICATORS", "hdfs://namenode:9000/user/spark/kafka_stream/indicators")
-
-print(f"\n Mes chemins HDFS:")
-print(f"   → Entrée (données brutes): {hdfs_input}")
-print(f"   → Sortie (indicateurs): {hdfs_output_indicators}")
-
-# ========================================
-# ÉTAPE 3: JE LIS LES DONNÉES DEPUIS HDFS
-# ========================================
-# Je charge les données Parquet que le job 1 a écrites
-
-print(f"\n Je lis les données depuis HDFS...")
 
 try:
-    orders_df = spark.read.parquet(hdfs_input)
-    print(f" ÉTAPE 3: J'ai lu les données depuis HDFS!")
-    print(f"   → Format: Parquet")
-    print(f"   → Nombre d'événements: {orders_df.count()}")
+    # Je crée ma session Spark pour l'analyse
+    spark = SparkSession.builder \
+        .appName("ShopNow-EcommerceAnalysis") \
+        .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
+        .config("spark.sql.streaming.checkpointLocation", "/tmp/spark_checkpoint") \
+        .getOrCreate()
+    
+    print("\n ÉTAPE 1: Ma session Spark est créée!")
+    print(f"   → Version Spark: {spark.version}")
+    print(f"   → Master: {spark.sparkContext.master}")
+    
 except Exception as e:
-    print(f" Erreur lecture HDFS: {e}")
-    print(f"   → Les données ne sont peut-être pas encore disponibles")
-    print(f"   → Attends que le job 1 écrive les données...")
-    exit(1)
+    print(f"\n ERREUR lors de la création de la session: {e}")
+    sys.exit(1)
 
-# ========================================
-# ÉTAPE 4: JE CALCULE LES INDICATEURS BUSINESS
-# ========================================
+# ===================================================================
+# ÉTAPE 2: DÉFINITION DES CHEMINS HDFS
+# ===================================================================
+hdfs_input_path = "hdfs://namenode:9000/user/spark/kafka_stream/data"
+hdfs_output_path = "hdfs://namenode:9000/user/spark/kafka_stream/indicators"
 
-print("\n ÉTAPE 4: Je calcule les indicateurs business!")
+print("\n ÉTAPE 2: Chemins HDFS définis")
+print(f"   → Entrée (données brutes): {hdfs_input_path}")
+print(f"   → Sortie (KPIs): {hdfs_output_path}")
 
-# ========================================
-# INDICATEUR 1: TOP 10 PRODUITS LES PLUS VUES (VIEW_PRODUCT)
-# ========================================
-# Je compte combien de fois chaque produit a été VU
+# ===================================================================
+# ÉTAPE 3: LECTURE DES DONNÉES AVEC RETRY (PARTIE CRITIQUE!)
+# ===================================================================
+print("\n" + "=" * 70)
+print("Je lis les données depuis HDFS avec patience...")
+print("=" * 70)
 
-print("\n Indicateur 1: TOP 10 PRODUITS LES PLUS VUES")
+# Je configure les paramètres de retry
+MAX_TENTATIVES = 6
+DELAI_ATTENTE = 5  # secondes
+df = None
 
-top_viewed_products = orders_df \
-    .filter(col("eventType") == "VIEW_PRODUCT") \
-    .groupBy("productId", "productName") \
-    .agg(
-        count("*").alias("nombre_vues")  # Je compte les vues
-    ) \
-    .orderBy(desc("nombre_vues")) \
-    .limit(10)
+# Je boucle et réessaie si les données ne sont pas là
+for tentative in range(1, MAX_TENTATIVES + 1):
+    try:
+        print(f"\n Tentative {tentative}/{MAX_TENTATIVES}...", end=" ")
+        
+        # Je lis les données Parquet depuis HDFS
+        df = spark.read.parquet(hdfs_input_path)
+        
+        # Si on arrive ici, les données existent!
+        nombre_lignes = df.count()
+        
+        if nombre_lignes > 0:
+            print(f"SUCCÈS!")
+            print(f"   → {nombre_lignes} événements trouvés et chargés")
+            break  # Je quitte la boucle, les données sont là
+        else:
+            print(f"Dossier vide, réessai dans {DELAI_ATTENTE}sec...")
+            time.sleep(DELAI_ATTENTE)
+            
+    except Exception as e:
+        # Les données n'existent pas encore (normal au démarrage)
+        if tentative < MAX_TENTATIVES:
+            print(f" Données pas encore disponibles")
+            print(f"   → Raison: {str(e)[:50]}...")
+            print(f"   → Attente {DELAI_ATTENTE}sec avant tentative {tentative + 1}...")
+            time.sleep(DELAI_ATTENTE)
+        else:
+            # Après 6 tentatives = 30 secondes d'attente
+            print(f"\n ERREUR définitive après {MAX_TENTATIVES} tentatives")
+            print(f"   → Les données ne sont toujours pas disponibles en HDFS")
+            print(f"   → Assurez-vous que Job 1 (sparkpy) écrit les données")
+            print(f"   → Nouveau cycle dans 10 minutes...")
+            sys.exit(1)
 
-print("   ✓ Groupé par produit")
-print("   ✓ Compté les vues")
-print("   ✓ Trié par nombre de vues décroissant")
+# Si on arrive ici, on a les données!
+print(f"\n Données chargées avec succès!")
+print(f"   → Schéma détecté automatiquement")
+df.printSchema()
 
-# ========================================
-# INDICATEUR 2: TOP 10 PRODUITS LES PLUS ACHETES (ADD_TO_CART)
-# ========================================
-# Je compte combien de fois chaque produit a été ACHETÉ
+# ===================================================================
+# ÉTAPE 4: AFFICHAGE DES 5 PREMIÈRES LIGNES
+# ===================================================================
+print("\n Aperçu des 5 premiers événements:")
+df.show(5)
 
-print("\n Indicateur 2: TOP 10 PRODUITS LES PLUS ACHETES")
-
-top_bought_products = orders_df \
-    .filter(col("eventType") == "ADD_TO_CART") \
-    .groupBy("productId", "productName") \
-    .agg(
-        count("*").alias("nombre_achats"),  # Je compte les achats
-        spark_sum("unitPrice").alias("ca_total")  # Je somme le CA (price × 1)
-    ) \
-    .orderBy(desc("nombre_achats")) \
-    .limit(10)
-
-print("   ✓ Filtré sur ADD_TO_CART")
-print("   ✓ Compté les achats")
-print("   ✓ Sommé le chiffre d'affaires")
-
-# ========================================
-# INDICATEUR 3: CHIFFRE D'AFFAIRES PAR JOUR
-# ========================================
-# Je calcule le CA total par jour
-
-print("\n Indicateur 3: CHIFFRE D'AFFAIRES PAR JOUR")
-
-daily_revenue = orders_df \
-    .filter(col("eventType") == "ADD_TO_CART") \
-    .groupBy("event_date") \
-    .agg(
-        spark_sum("unitPrice").alias("ca_jour"),  # CA total du jour
-        count("*").alias("nombre_achats"),  # Nombre de commandes du jour
-        avg("unitPrice").alias("panier_moyen")  # Panier moyen du jour
-    ) \
-    .orderBy(desc("ca_jour"))
-
-print("   ✓ Groupé par date")
-print("   ✓ Calculé CA total, nombre de commandes, panier moyen")
-
-# ========================================
-# INDICATEUR 4: ALERTES RUPTURE DE STOCK
-# ========================================
-# Je détecte les produits en rupture de stock (stock = 0 après achat)
-
-print("\n  Indicateur 4: ALERTES RUPTURE DE STOCK")
-
-stock_alerts = orders_df \
-    .filter((col("eventType") == "ADD_TO_CART") & (col("stockAfter") == 0)) \
-    .groupBy("productId", "productName") \
-    .agg(
-        count("*").alias("nombre_ruptures"),  # Combien de fois en rupture
-        spark_sum("unitPrice").alias("ca_perdu")  # CA potentiellement perdu
-    ) \
-    .orderBy(desc("nombre_ruptures"))
-
-print("   ✓ Filtré les ADD_TO_CART avec stock = 0")
-print("   ✓ Compté les ruptures par produit")
-print("   ✓ Calculé le CA potentiellement perdu")
-
-# ========================================
-# INDICATEUR 5: PRODUITS PAR GAMME DE PRIX
-# ========================================
-# Je groupe les produits par gamme de prix (cher vs pas cher)
-
-print("\n Indicateur 5: PRODUITS PAR GAMME DE PRIX")
-
-products_by_price = orders_df \
-    .withColumn(
-        "gamme_prix",
-        when(col("unitPrice") > 500, "TRÈS_CHER")
-        .when(col("unitPrice") > 100, "CHER")
-        .otherwise("ABORDABLE")
-    ) \
-    .groupBy("productId", "productName", "gamme_prix") \
-    .agg(
-        count("*").alias("total_interactions")  # Interactions pour ce produit
-    ) \
-    .orderBy(desc("total_interactions"))
-
-print("   ✓ Créé des gammes de prix")
-print("   ✓ Groupé par gamme")
-print("   ✓ Compté interactions par gamme")
-
-# ========================================
-# ÉTAPE 5: J'ÉCRIS LES RÉSULTATS DANS HDFS
-# ========================================
-
-print("\n ÉTAPE 5: J'écris les résultats dans HDFS!")
+# ===================================================================
+# ÉTAPE 5: KPI 1 - TOP 10 PRODUITS LES PLUS VUS
+# ===================================================================
+print("\n" + "=" * 70)
+print(" KPI 1: TOP 10 PRODUITS LES PLUS VUES")
+print("=" * 70)
 
 try:
-    # J'écris TOP produits vus
-    top_viewed_products.coalesce(1) \
-        .write \
-        .mode("overwrite") \
-        .parquet(f"{hdfs_output_indicators}/top_viewed_products")
-    print(f"   ✓ TOP produits vus → {hdfs_output_indicators}/top_viewed_products")
+    # Je filtre les événements VIEW_PRODUCT et je compte les occurrences
+    top_viewed = df.filter(col("type") == "VIEW_PRODUCT") \
+        .groupBy("produitId", "title") \
+        .agg(count("*").alias("nombre_vues")) \
+        .orderBy(col("nombre_vues").desc()) \
+        .limit(10)
     
-    # J'écris TOP produits achetés
-    top_bought_products.coalesce(1) \
-        .write \
-        .mode("overwrite") \
-        .parquet(f"{hdfs_output_indicators}/top_bought_products")
-    print(f"   ✓ TOP produits achetés → {hdfs_output_indicators}/top_bought_products")
+    print("\n Résultats:")
+    top_viewed.show(10)
     
-    # J'écris CA par jour
-    daily_revenue.coalesce(1) \
-        .write \
-        .mode("overwrite") \
-        .parquet(f"{hdfs_output_indicators}/daily_revenue")
-    print(f"   ✓ CA par jour → {hdfs_output_indicators}/daily_revenue")
-    
-    # J'écris alertes rupture
-    stock_alerts.coalesce(1) \
-        .write \
-        .mode("overwrite") \
-        .parquet(f"{hdfs_output_indicators}/stock_alerts")
-    print(f"   ✓ Alertes rupture → {hdfs_output_indicators}/stock_alerts")
-    
-    # J'écris produits par prix
-    products_by_price.coalesce(1) \
-        .write \
-        .mode("overwrite") \
-        .parquet(f"{hdfs_output_indicators}/products_by_price")
-    print(f"   ✓ Produits par prix → {hdfs_output_indicators}/products_by_price")
+    # Je sauvegarde les résultats en Parquet
+    top_viewed.write.mode("overwrite").parquet(f"{hdfs_output_path}/top_viewed_products")
+    print(f"\n Résultats sauvegardés: {hdfs_output_path}/top_viewed_products")
     
 except Exception as e:
-    print(f" Erreur écriture HDFS: {e}")
-    exit(1)
+    print(f" Erreur calcul TOP VUES: {e}")
 
-# ========================================
-# ÉTAPE 6: J'AFFICHE LES RÉSULTATS
-# ========================================
-
+# ===================================================================
+# ÉTAPE 6: KPI 2 - TOP 10 PRODUITS LES PLUS ACHETES + CHIFFRE D'AFFAIRES
+# ===================================================================
 print("\n" + "=" * 70)
-print(" RÉSUMÉ DES INDICATEURS CALCULÉS")
+print(" KPI 2: TOP 10 PRODUITS LES PLUS ACHETES + CA")
 print("=" * 70)
 
-print("\n TOP 10 PRODUITS LES PLUS VUES:")
-top_viewed_products.show(10, truncate=False)
+try:
+    # Je filtre les ajouts au panier (achat) et je calcule le CA
+    top_bought = df.filter(col("type") == "ADD_TO_CART") \
+        .groupBy("produitId", "title", "price") \
+        .agg(
+            count("*").alias("nombre_achats"),
+            (col("price") * count("*")).alias("CA_total")
+        ) \
+        .orderBy(col("nombre_achats").desc()) \
+        .limit(10)
+    
+    print("\n Résultats:")
+    top_bought.show(10)
+    
+    # Je sauvegarde
+    top_bought.write.mode("overwrite").parquet(f"{hdfs_output_path}/top_bought_products")
+    print(f"\n Résultats sauvegardés: {hdfs_output_path}/top_bought_products")
+    
+except Exception as e:
+    print(f" Erreur calcul TOP ACHATS: {e}")
 
-print("\n TOP 10 PRODUITS LES PLUS ACHETES:")
-top_bought_products.show(10, truncate=False)
-
-print("\n CHIFFRE D'AFFAIRES PAR JOUR:")
-daily_revenue.show(10, truncate=False)
-
-print("\n  ALERTES RUPTURE DE STOCK:")
-stock_alerts.show(10, truncate=False)
-
-print("\n PRODUITS PAR GAMME DE PRIX:")
-products_by_price.show(20, truncate=False)
-
+# ===================================================================
+# ÉTAPE 7: KPI 3 - CHIFFRE D'AFFAIRES PAR JOUR
+# ===================================================================
 print("\n" + "=" * 70)
-print(" ANALYSE TERMINÉE!")
+print(" KPI 3: CHIFFRE D'AFFAIRES PAR JOUR")
 print("=" * 70)
-print(" Les indicateurs sont sauvegardés dans HDFS:")
-print(f"   → Chemin: {hdfs_output_indicators}")
-print("   → Format: Parquet")
-print("   → ShopNow+ peut maintenant voir les insights métier")
+
+try:
+    # Je extrais la date depuis event_date et je somme les montants
+    daily_revenue = df.filter(col("type") == "ADD_TO_CART") \
+        .groupBy("event_date") \
+        .agg(
+            spark_sum("montant_potentiel").alias("CA_jour")
+        ) \
+        .orderBy("event_date")
+    
+    print("\n Résultats:")
+    daily_revenue.show()
+    
+    # Je sauvegarde
+    daily_revenue.write.mode("overwrite").parquet(f"{hdfs_output_path}/daily_revenue")
+    print(f"\n Résultats sauvegardés: {hdfs_output_path}/daily_revenue")
+    
+except Exception as e:
+    print(f" Erreur calcul CA/JOUR: {e}")
+
+# ===================================================================
+# ÉTAPE 8: KPI 4 - ALERTES RUPTURE DE STOCK
+# ===================================================================
+print("\n" + "=" * 70)
+print(" KPI 4: ALERTES RUPTURE DE STOCK (stock = 0)")
 print("=" * 70)
+
+try:
+    # Je détecte quand stock passe à 0 (rupture de stock)
+    stock_alerts = df.filter(col("newStock") == 0) \
+        .select(
+            col("event_datetime"),
+            col("produitId"),
+            col("title"),
+            col("newStock"),
+            col("alerte_rupture")
+        ) \
+        .orderBy("event_datetime")
+    
+    print("\n Résultats:")
+    stock_alerts.show()
+    
+    # Je sauvegarde
+    stock_alerts.write.mode("overwrite").parquet(f"{hdfs_output_path}/stock_alerts")
+    print(f"\n Résultats sauvegardés: {hdfs_output_path}/stock_alerts")
+    
+except Exception as e:
+    print(f" Erreur calcul ALERTES: {e}")
+
+# ===================================================================
+# ÉTAPE 9: KPI 5 - PRODUITS PAR GAMME DE PRIX
+# ===================================================================
+print("\n" + "=" * 70)
+print(" KPI 5: PRODUITS PAR GAMME DE PRIX")
+print("=" * 70)
+
+try:
+    # Je catégorise par gamme de prix
+    price_ranges = df.select(
+        col("produitId"),
+        col("title"),
+        col("price"),
+        # Je crée une colonne gamme_prix selon le tarif
+        when(col("price") > 500, "TRES_CHER_500+") \
+        .when(col("price") > 100, "CHER_100-500") \
+        .when(col("price") > 30, "MOYEN_30-100") \
+        .otherwise("ABORDABLE_<30").alias("gamme_prix")
+    ) \
+    .groupBy("gamme_prix") \
+    .agg(count("*").alias("nombre_produits"))
+    
+    print("\n Résultats:")
+    price_ranges.show()
+    
+    # Je sauvegarde
+    price_ranges.write.mode("overwrite").parquet(f"{hdfs_output_path}/products_by_price")
+    print(f"\n Résultats sauvegardés: {hdfs_output_path}/products_by_price")
+    
+except Exception as e:
+    print(f" Erreur calcul GAMME PRIX: {e}")
+
+# ===================================================================
+# RÉSUMÉ FINAL
+# ===================================================================
+print("\n" + "=" * 70)
+print(" JOB SPARK 2 TERMINÉ AVEC SUCCÈS!")
+print("=" * 70)
+print("\n KPIs CALCULÉS:")
+print(f"   ✓ TOP 10 produits vus → {hdfs_output_path}/top_viewed_products")
+print(f"   ✓ TOP 10 produits achetés + CA → {hdfs_output_path}/top_bought_products")
+print(f"   ✓ CA par jour → {hdfs_output_path}/daily_revenue")
+print(f"   ✓ Alertes rupture stock → {hdfs_output_path}/stock_alerts")
+print(f"   ✓ Produits par gamme prix → {hdfs_output_path}/products_by_price")
+
+print(f"\n Exécution: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("=" * 70)
+
+# Je ferme la session Spark
+spark.stop()
+print("\n Session Spark fermée")
