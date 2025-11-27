@@ -94,6 +94,17 @@ services:
     depends_on:
       - zookeeper
 
+  producer:
+    build: ./big_data/app
+    container_name: producer-shopnow
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    command: bash -c "sleep 60 && python producer.py"
+    volumes:
+      - ./big_data/app:/app
+
   consumer:
     build: ./big_data/app
     container_name: kafka-consumer
