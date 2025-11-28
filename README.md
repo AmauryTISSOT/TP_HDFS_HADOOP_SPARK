@@ -160,17 +160,113 @@ Il est ainsi possible de mettre en place :
 
 **Proposez une arborescence HDFS pour ShopNow+ (ex : /ecommerce/brut/orders/, /ecommerce/curated/stocks/…)**
 
-**Comment organiseriez-vous les données pour retrouver facilement : toutes les commandes d’un jour donné, l’historique des ventes d’un produit précis ?**
+J'ai créé une arborescence en 3 couches pour organiser les données :
+
+```
+/user/spark/kafka_stream/
+├── brut/
+│   ├── events/
+│   │   └── [événements Kafka bruts en Parquet]
+│   └── [flux continu depuis Kafka]
+├── curated/
+│   ├── view_product/
+│   ├── add_to_cart/
+│   └── [données filtrées par type d'événement]
+└── indicators/
+    ├── top_viewed_products/
+    ├── top_bought_products/
+    ├── daily_revenue/
+    ├── stock_alerts/
+    ├── products_by_price/
+    └── global_stats/
+```
+
+**Logique** :
+- **`brut/`** : Données brutes depuis Kafka (Job 1 y écrit en continu)
+- **`curated/`** : Données filtrées et enrichies par type d'événement
+- **`indicators/`** : Résultats finaux des calculs (Job 2 y écrit les KPIs)
+
+---
+
+**Comment organiseriez-vous les données pour retrouver facilement : toutes les commandes d'un jour donné, l'historique des ventes d'un produit précis ?**
+
+- **Toutes les commandes d'un jour donné** : Les données sont partitionnées par date dans `/brut/events/`. Je peux facilement accéder aux données d'une date spécifique.
+
+- **Historique des ventes d'un produit précis** : Dans `/curated/add_to_cart/`, les événements contiennent `id_produit`. Avec Spark, un simple filtrage sur ce champ retourne toutes les ventes du produit. Le format Parquet (columnaire) optimise cette requête.
+
+---
 
 **Quels formats (JSON, CSV, Parquet…) utiliseriez-vous à quels endroits, et pourquoi ?**
+
+| Chemin | Format | Justification |
+| ------ | ------ | ------------- |
+| `/brut/events/` | **Parquet** | Compression 5-10×, format columnaire, standard Big Data |
+| `/curated/` | **Parquet** | Performance + compression optimale |
+| `/indicators/` | **Parquet** | Résultats optimisés pour dashboards (lecture rapide) |
+
+---
+
 
 ## Spark
 
 **Quels indicateurs business mettriez-vous en place en priorité (TOP produits, CA par jour, taux de rupture de stock…) ?**
 
-**Donner un exemple de règle métier que Spark peut calculer, par ex. : “produit en risque de rupture si…”.**
+J'ai implémenté 6 KPIs métier :
 
-**Pour ce cas e-commerce, préférez-vous des traitements quasi temps réel ou par lots (jour, heure) ?**
+1. **KPI 1: TOP 10 Produits les plus vus** - Consultations par produit
+2. **KPI 2: TOP 10 Produits achetés + CA** - Rentabilité produits
+3. **KPI 3: Chiffre d'affaires par jour** - Tendances de vente
+4. **KPI 4: Alertes rupture de stock** - Produits à stock = 0
+5. **KPI 5: Produits par gamme de prix** - Stratégie tarifaire
+6. **KPI 6: Statistiques globales** - Santé plateforme
+
+**Ce que j'ai trouvé** :
+- 2574 événements traités
+- 1844 consultations, 730 achats
+- 346 620€ de CA
+- Taux de conversion: **39,6%** (excellent!)
+- 7 produits en rupture de stock
+
+---
+
+**Donner un exemple de règle métier que Spark peut calculer, par ex. : "produit en risque de rupture si…".**
+
+**Exemple 1: Rupture de stock**
+```
+Si stock = 0 → Alerte immédiate
+Produits détectés: Laptop Dell XPS, iPhone 15 Pro, AirPods Pro, Samsung Galaxy, iPad Air, Sony Headphones, Mechanical Keyboard
+```
+
+**Exemple 2: Taux de conversion produit**
+```
+Taux conversion = Achats / Consultations × 100%
+Si taux > 39% → Produit très populaire (à promouvoir)
+```
+
+**Exemple 3: Pic de vente**
+```
+Si CA jour > CA moyen × 2 → Pic d'activité détecté
+Observé: 29/11 avec 124 650€ (2× plus que les autres jours)
+```
+
+---
+
+**Pour ce cas e-commerce, préférez-vous des traitements quasi temps réel ou par lots (jour, heure) ? Justifiez.**
+
+**J'ai choisi : Batch quotidien (version 1)**
+
+| Approche | Avantages | Inconvénients | Choix |
+| -------- | --------- | ------------- | ----- |
+| **Temps réel (Streaming)** | KPIs toujours à jour | Complexe, ressources | Futur |
+| **Par lots (Batch)** | Simple, fiable | Délai quelques heures | ✅ Actuel |
+
+**Justification** :
+- Job 1 (Spark Streaming) récupère les événements Kafka et les sauvegarde en HDFS en continu
+- Job 2 (Spark Batch) calcule une fois par jour tous les KPIs sur les données accumulées
+- Les alertes rupture stock sont envoyées immédiatement via le backend (pas besoin de Spark temps réel)
+- Suffisant pour piloter la plateforme
+
+---
 
 # Rapport de synthèse client
 
