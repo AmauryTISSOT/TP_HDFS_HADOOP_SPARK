@@ -151,10 +151,26 @@ Il est ainsi possible de mettre en place :
 ## Kafka
 
 **Comment organisez-vous vos topics (par type d’événement, par domaine : orders, stock, catalogue) et pourquoi ?**
+Nous utilisons un topic unique ecommerce pour centraliser tous les événements clients (VIEW_PRODUCT et ADD_TO_CART). Cette approche simplifie la gestion et garantit la cohérence des événements par produit. Chaque message est partitionné par produitId, ce qui permet de conserver l’ordre des événements pour un même produit et facilite les traitements Spark. À l’avenir, on pourrait créer plusieurs topics par domaine (orders, stock, catalogue) pour améliorer la scalabilité et isoler les flux critiques.
 
 **Quelle clé de partition choisiriez-vous (id commande, id produit, autre) et quel est l’intérêt de ce choix ?**
-
+Nous choisissons produitId comme clé de partition. L’intérêt est de garantir que tous les événements liés à un même produit arrivent dans le même partition, ce qui permet de préserver l’ordre des événements pour ce produit et facilite le calcul cohérent des stocks, des ventes et des KPIs associés. Cela simplifie également le traitement en streaming et le replay des événements.
 **Comment votre organisation Kafka aide-t-elle à rejouer ou analyser les historiques (par ex. incident sur les commandes) ?**
+Notre organisation Kafka facilite le replay et l’analyse des historiques grâce à plusieurs points :
+
+Les événements sont structurés par type (VIEW_PRODUCT, ADD_TO_CART) dans des topics distincts, ce qui permet de filtrer rapidement selon le domaine.
+
+Chaque événement contient des informations complètes : produit, utilisateur, timestamp, stock, montant, etc.
+
+Les topics conservent les messages pendant une période configurable, permettant de relire les événements passés si nécessaire.
+
+En cas d’incident sur une commande ou un produit, nous pouvons rejouer les événements depuis Kafka pour reconstruire l’état exact.
+
+Les clés de partition (id produit) assurent que l’ordre des événements est préservé par produit, indispensable pour des calculs cohérents.
+
+Les jobs Spark peuvent consommer ces événements en continu ou en batch pour recalculer les indicateurs ou corriger des erreurs.
+
+Cette approche rend l’historique fiable, consultable et auditables, tout en permettant des analyses rétrospectives et la détection d’anomalies.
 
 ## HDFS
 
